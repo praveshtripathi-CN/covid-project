@@ -111,7 +111,24 @@ jobs:
           script: |
 
             set -e
+
+            # 🔥 ADD THIS BLOCK (IMPORTANT)
+            echo "📦 Refreshing latest repo..."
+            rm -rf covid-app
+            git clone https://github.com/${{ github.repository }} covid-app
+
             cd covid-app
+
+            # Copy JAR into root as app.jar (IMPORTANT FIX)
+            cp target/*.jar app.jar
+
+            echo "📄 Dockerfile check:"
+            cat Dockerfile
+
+            echo "📂 Files:"
+            ls -l
+            # 🔥 END OF ADDED BLOCK
+
 
             echo "🧹 Cleaning old container..."
             docker stop covid19-backend || true
