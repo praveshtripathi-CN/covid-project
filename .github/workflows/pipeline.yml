@@ -211,6 +211,7 @@ jobs:
 
             echo "🚀 Running container..."
             docker run -d -p 8081:8081 \
+              -e SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/covid_db\
               -e DB_HOST=localhost \
               -e DB_PORT=${{ secrets.DB_PORT }} \
               -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
