@@ -111,24 +111,68 @@ jobs:
           script: |
 
             set -e
+            echo "🚀 Connected to EC2"
 
-            # 🔥 ADD THIS BLOCK (IMPORTANT)
-            echo "📦 Refreshing latest repo..."
-            rm -rf covid-app
-            git clone https://github.com/${{ github.repository }} covid-app
+            # -------------------------------
+            # Install Docker if not present
+            # -------------------------------
+            if ! command -v docker &> /dev/null
+            then
+              echo "🐳 Installing Docker..."
+              sudo apt update -y
+              sudo apt install -y docker.io
+              sudo systemctl start docker
+              sudo systemctl enable docker
+            else
+              echo "✅ Docker already installed"
+            fi
+
+            # -------------------------------
+            # Prepare app directory
+            # -------------------------------
+            mkdir -p covid-app
+            cd covid-app
+
+            # -------------------------------
+            # Clean old files
+            # -------------------------------
+            rm -rf target
+            mkdir target
+
+            # -------------------------------
+            # NOTE: JAR will be copied manually below
+            # -------------------------------
+
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.IP }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          source: "target/*.jar"
+          target: "covid-app/target/"
+
+      - name: Final Deployment Commands
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.IP }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          script: |
+
+            set -e
 
             cd covid-app
 
-            # Copy JAR into root as app.jar (IMPORTANT FIX)
+            # 🔥 FIX: JAR is already copied by SCP → just use it
+            echo "📂 Checking target folder..."
+            ls -l target/
+
+            # Copy jar to root for Docker
             cp target/*.jar app.jar
 
-            echo "📄 Dockerfile check:"
-            cat Dockerfile
-
-            echo "📂 Files:"
+            echo "📂 Root files:"
             ls -l
-            # 🔥 END OF ADDED BLOCK
-
 
             echo "🧹 Cleaning old container..."
             docker stop covid19-backend || true
@@ -149,10 +193,5 @@ jobs:
               -e MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }} \
               --name covid19-backend covid19-backend:1.0
 
-            echo "📊 Checking container..."
             docker ps -a
-
-            echo "📜 Logs:"
             docker logs covid19-backend || true
-
-            echo "✅ Deployment Successful"
