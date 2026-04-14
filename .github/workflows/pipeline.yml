@@ -1,4 +1,4 @@
-name: Deploy to EC2 (Robust Docker Deploy)
+name: CI/CD Pipeline - Build & Deploy
 
 on:
   push:
@@ -6,12 +6,51 @@ on:
       - main
 
 jobs:
-  deploy:
+
+  # =========================
+  # 🏗️ BUILD JOB (GitHub Runner)
+  # =========================
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build JAR with Maven
+        run: |
+          chmod +x mvnw
+          ./mvnw clean package -DskipTests
+
+      - name: Verify JAR
+        run: ls target/
+
+      - name: Upload JAR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
+
+  # =========================
+  # 🚀 DEPLOY JOB (EC2)
+  # =========================
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build   # 👈 ensures build runs first
+
+    steps:
+      - name: Download JAR Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target/
 
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.10
@@ -21,17 +60,11 @@ jobs:
           key: ${{ secrets.KEY }}
           script: |
 
-            set -e  # ❗ fail fast (VERY IMPORTANT)
-
+            set -e
             echo "🚀 Connected to EC2"
 
             # -------------------------------
-            # Fix Docker permission (important)
-            # -------------------------------
-            sudo usermod -aG docker ubuntu || true
-
-            # -------------------------------
-            # Install Docker if not installed
+            # Install Docker if not present
             # -------------------------------
             if ! command -v docker &> /dev/null
             then
@@ -45,39 +78,50 @@ jobs:
             fi
 
             # -------------------------------
-            # Clone or update repo
+            # Prepare app directory
             # -------------------------------
-            if [ ! -d "covid-app" ]; then
-              echo "📦 Cloning repo..."
-              git clone https://github.com/${{ github.repository }} covid-app
-            fi
-
+            mkdir -p covid-app
             cd covid-app
-            git pull origin main
 
             # -------------------------------
-            # Stop & remove old container
+            # Clean old files
             # -------------------------------
+            rm -rf target
+            mkdir target
+
+            # -------------------------------
+            # NOTE: JAR will be copied manually below
+            # -------------------------------
+
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.IP }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          source: "target/*.jar"
+          target: "covid-app/target/"
+
+      - name: Final Deployment Commands
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.IP }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          script: |
+
+            set -e
+            cd covid-app
+
             echo "🧹 Cleaning old container..."
             docker stop covid19-backend || true
             docker rm covid19-backend || true
-
-            # -------------------------------
-            # Remove old image (optional)
-            # -------------------------------
             docker rmi covid19-backend:1.0 || true
 
-            # -------------------------------
-            # Build Docker image
-            # -------------------------------
             echo "🔨 Building Docker image..."
             docker build -t covid19-backend:1.0 .
 
-            # -------------------------------
-            # Run container (FIXED DB_HOST)
-            # -------------------------------
             echo "🚀 Running container..."
-
             docker run -d -p 8080:8080 \
               -e DB_HOST=localhost \
               -e DB_PORT=${{ secrets.DB_PORT }} \
@@ -88,16 +132,10 @@ jobs:
               -e MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }} \
               --name covid19-backend covid19-backend:1.0
 
-            # -------------------------------
-            # Debug: Check container status
-            # -------------------------------
-            echo "📊 Checking container status..."
+            echo "📊 Checking container..."
             docker ps -a
 
-            # -------------------------------
-            # Debug: Show logs if failed
-            # -------------------------------
-            echo "📜 Container logs:"
+            echo "📜 Logs:"
             docker logs covid19-backend || true
 
-            echo "✅ Deployment Completed"
+            echo "✅ Deployment Successful"
