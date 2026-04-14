@@ -1,7 +1,7 @@
 name: Deploy to EC2 (Docker Build & Run)
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - main
 
