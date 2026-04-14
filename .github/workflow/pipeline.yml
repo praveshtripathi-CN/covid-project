@@ -1,0 +1,75 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.IP }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          script: |
+
+            echo "🚀 Connected to EC2"
+
+            # -------------------------------
+            # Install Docker if not installed
+            # -------------------------------
+            if ! command -v docker &> /dev/null
+            then
+              echo "🐳 Installing Docker..."
+              sudo apt update
+              sudo apt install -y docker.io
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker ubuntu
+            else
+              echo "✅ Docker already installed"
+            fi
+
+            # -------------------------------
+            # Go to project directory
+            # -------------------------------
+            if [ ! -d "covid-app" ]; then
+              git clone https://github.com/${{ github.repository }} covid-app
+            fi
+
+            cd covid-app
+            git pull origin main
+
+            # -------------------------------
+            # Stop & remove old container
+            # -------------------------------
+            docker stop covid19-backend || true
+            docker rm covid19-backend || true
+
+            # -------------------------------
+            # Build Docker Image
+            # -------------------------------
+            docker build -t covid19-backend:1.0 .
+
+            # -------------------------------
+            # Run container with secrets
+            # -------------------------------
+            docker run -d -p 8080:8080 \
+              -e DB_HOST=${{ secrets.DB_HOST }} \
+              -e DB_PORT=${{ secrets.DB_PORT }} \
+              -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e MAIL_USERNAME=${{ secrets.MAIL_USERNAME }} \
+              -e MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }} \
+              --name covid19-backend covid19-backend:1.0
+
+            echo "✅ Deployment Successful"
