@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+
+  mysql:
+    image: mysql:8
+    container_name: mysql-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: covid_db
+    ports:
+      - "3306:3306"
+    networks:
+      - covid-network
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  backend:
+    build:
+      context: .
+      dockerfile: dockerfile          
+    container_name: covid19-backend
+    depends_on:
+      - mysql
+    ports:
+      - "8081:8080"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql  
+    networks:
+      - covid-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+    container_name: covid-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - covid-network
+
+networks:
+  covid-network:
+
+volumes:
+  mysql-data:
