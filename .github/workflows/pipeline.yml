@@ -122,13 +122,16 @@ jobs:
             ls -l
 
             # =========================
-            # Create .env file (IMPORTANT: no spaces)
+            # Create .env file (FIXED)
             # =========================
             echo "⚙️ Creating .env file..."
             cat <<EOF > .env
+            DB_HOST=mysql
+            DB_PORT=3306
+            DB_USERNAME=root
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
-            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }} 
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
             EOF
 
