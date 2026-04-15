@@ -15,6 +15,11 @@ services:
       - covid-network
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -22,16 +27,13 @@ services:
       dockerfile: Dockerfile
     container_name: covid19-backend
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+    restart: always
     ports:
       - "8081:8080"
     env_file:
       - .env
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/covid_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: mysql
     networks:
       - covid-network
 
@@ -40,10 +42,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: covid-frontend
-    ports:
-      - "4200:80"
     depends_on:
       - backend
+    restart: always
+    ports:
+      - "4200:80"
     networks:
       - covid-network
 
