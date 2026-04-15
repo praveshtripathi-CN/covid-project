@@ -135,7 +135,14 @@ jobs:
             # =========================
             # Stop old containers
             # =========================
-            echo "🧹 Cleaning up..."
+            echo "🧹 Cleaning up old containers..."
+
+            # Stop and remove old containers (force)
+            docker rm -f mysql-db || true
+            docker rm -f covid19-backend || true
+            docker rm -f covid-frontend || true
+
+            # Also bring down compose (if exists)
             docker-compose down || true
 
             # =========================
