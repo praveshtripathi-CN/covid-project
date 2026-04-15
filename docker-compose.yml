@@ -7,7 +7,7 @@ services:
     container_name: mysql-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: covid_db
     ports:
       - "3306:3306"
@@ -19,7 +19,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: dockerfile          
+      dockerfile: Dockerfile
     container_name: covid19-backend
     depends_on:
       - mysql
@@ -28,14 +28,17 @@ services:
     env_file:
       - .env
     environment:
-      DB_HOST: mysql  
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/covid_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: mysql
     networks:
       - covid-network
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
     container_name: covid-frontend
     ports:
       - "4200:80"
