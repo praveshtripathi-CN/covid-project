@@ -10,7 +10,6 @@ RUN npm install
 
 COPY . .
 
-# Proper production build (no || true)
 RUN npm run build -- --configuration=production
 
 # =========================
@@ -18,10 +17,9 @@ RUN npm run build -- --configuration=production
 # =========================
 FROM nginx:alpine
 
-# Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# IMPORTANT: correct Angular build output path
+# Correct Angular output path
 COPY --from=build /app/dist/frontend /usr/share/nginx/html
 
 EXPOSE 80
