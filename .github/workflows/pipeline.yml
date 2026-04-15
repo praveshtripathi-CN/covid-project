@@ -91,8 +91,8 @@ jobs:
             fi
 
             # Verify
-            docker --version
-            docker-compose --version
+            sudo docker --version
+            sudo docker-compose --version
 
             # =========================
             # Fix Docker permissions
@@ -122,7 +122,7 @@ jobs:
             ls -l
 
             # =========================
-            # Create .env file (FIXED)
+            # Create .env file (IMPORTANT: no indentation)
             # =========================
             echo "⚙️ Creating .env file..."
             cat <<EOF > .env
@@ -131,7 +131,7 @@ jobs:
             DB_USERNAME=root
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
-            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }} 
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
             MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
             EOF
 
@@ -140,26 +140,24 @@ jobs:
             # =========================
             echo "🧹 Cleaning up old containers..."
 
-            # Stop and remove old containers (force)
-            docker rm -f mysql-db || true
-            docker rm -f covid19-backend || true
-            docker rm -f covid-frontend || true
+            sudo docker rm -f mysql-db || true
+            sudo docker rm -f covid19-backend || true
+            sudo docker rm -f covid-frontend || true
 
-            # Also bring down compose (if exists)
-            docker-compose down || true
+            sudo docker-compose down || true
 
             # =========================
             # Build & Start
             # =========================
             echo "🚀 Starting application..."
-            docker-compose up -d --build
+            sudo docker-compose up -d --build
 
             # =========================
             # Verify
             # =========================
-            docker ps -a
+            sudo docker ps -a
 
             # =========================
             # Logs
             # =========================
-            docker-compose logs --tail=50
+            sudo docker-compose logs --tail=50
